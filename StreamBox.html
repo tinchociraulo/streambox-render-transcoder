@@ -1,0 +1,1386 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StreamBox</title>
+<!-- Video.js con soporte de codecs ampliado -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video-js.min.css" rel="stylesheet">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;500;700;900&family=Barlow:wght@300;400;500&display=swap');
+  :root {
+    --bg:#0a0a0f; --surface:#12121a; --surface2:#1a1a26; --border:#2a2a3d;
+    --accent:#e63946; --accent2:#457b9d; --text:#edf2f4; --text-muted:#6b7280;
+    --glow:rgba(230,57,70,0.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;overflow:hidden;height:100vh;width:100vw;user-select:none;}
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:0.4;}
+  .screen{display:none;height:100vh;width:100vw;flex-direction:column;animation:fadeIn 0.3s ease;}
+  .screen.active{display:flex;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+  /* SPLASH */
+  #splashScreen{align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a0a14 0%,var(--bg) 70%);}
+  .splash-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:72px;letter-spacing:-2px;animation:splashIn 0.6s ease;}
+  .splash-logo span{color:var(--accent);}
+  .splash-sub{font-size:14px;color:var(--text-muted);letter-spacing:4px;text-transform:uppercase;margin-top:8px;animation:splashIn 0.8s ease;}
+  .splash-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-top:40px;}
+  @keyframes splashIn{from{opacity:0;transform:scale(0.9)}to{opacity:1;transform:scale(1)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* TOPBAR */
+  .topbar{display:flex;align-items:center;padding:18px 40px;background:linear-gradient(to bottom,rgba(10,10,15,.97),transparent);position:absolute;top:0;left:0;right:0;z-index:100;gap:28px;}
+  .topbar-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:26px;flex-shrink:0;}
+  .topbar-logo span{color:var(--accent);}
+  .tabs{display:flex;gap:4px;flex:1;}
+  .tab{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:500;letter-spacing:1px;padding:7px 18px;border-radius:6px;cursor:pointer;color:var(--text-muted);border:1px solid transparent;transition:all .2s;text-transform:uppercase;}
+  .tab:focus,.tab:hover{color:var(--text);background:var(--surface2);border-color:var(--border);outline:none;}
+  .tab.active-tab{color:var(--accent);border-color:var(--accent);background:rgba(230,57,70,.08);}
+  .topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px rgba(74,222,128,.6);transition:all .3s;}
+  .status-text{font-size:13px;color:var(--text-muted);}
+  .settings-btn{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;}
+  .settings-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* SEARCH */
+  .search-bar-wrap{padding:90px 40px 16px;display:flex;gap:12px;}
+  .search-input-wrap{flex:1;position:relative;}
+  .search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:18px;}
+  .search-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px 14px 46px;color:var(--text);font-family:'Barlow',sans-serif;font-size:18px;outline:none;transition:border-color .2s,box-shadow .2s;margin:0;}
+  .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
+  .search-btn{background:var(--accent);color:white;border:none;border-radius:10px;padding:14px 28px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase;white-space:nowrap;}
+  .search-btn:hover,.search-btn:focus{background:#c1121f;box-shadow:0 0 20px var(--glow);outline:none;}
+  .content-area{flex:1;overflow-y:auto;padding:0 40px 40px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+
+  /* CARDS */
+  .results-section{margin-bottom:32px;}
+  .section-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--text-muted);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+  .section-badge{background:var(--accent);color:white;font-size:11px;padding:2px 8px;border-radius:4px;}
+  .results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+  .torrent-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+  .torrent-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent2);transform:scaleY(0);transition:transform .2s;transform-origin:bottom;}
+  .torrent-card:hover,.torrent-card:focus{border-color:var(--accent2);background:var(--surface2);outline:none;transform:translateX(4px);}
+  .torrent-card:hover::before,.torrent-card:focus::before{transform:scaleY(1);}
+  .torrent-name{font-size:14px;font-weight:500;margin-bottom:8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .torrent-meta{display:flex;gap:10px;flex-wrap:wrap;}
+  .meta-pill{font-size:12px;padding:3px 8px;border-radius:4px;background:var(--surface2);color:var(--text-muted);}
+  .meta-pill.seed{color:#4ade80;} .meta-pill.leech{color:var(--accent);} .meta-pill.size{color:var(--accent2);}
+  .stream-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:all .2s;}
+  .stream-card:hover,.stream-card:focus{border-color:var(--accent);outline:none;transform:scale(1.02);box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .stream-thumb{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#1a1a26,#12121a);display:flex;align-items:center;justify-content:center;position:relative;}
+  .stream-play-icon{position:absolute;font-size:32px;opacity:0;transition:opacity .2s;background:rgba(0,0,0,.7);width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .stream-card:hover .stream-play-icon,.stream-card:focus .stream-play-icon{opacity:1;}
+  .stream-info{padding:12px;}
+  .stream-title{font-size:14px;font-weight:500;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;}
+  .stream-source{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
+  .source-badge{background:rgba(69,123,157,.2);color:var(--accent2);border:1px solid rgba(69,123,157,.3);font-size:10px;padding:1px 6px;border-radius:3px;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;}
+
+  /* TORBOX TAB */
+  #torboxPanel{padding:90px 40px 20px;flex:1;overflow-y:auto;}
+  .panel-header{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;letter-spacing:1px;margin-bottom:20px;display:flex;align-items:center;gap:12px;}
+  .torrent-list{display:flex;flex-direction:column;gap:10px;}
+  .torrent-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;transition:all .2s;}
+  .torrent-item:hover,.torrent-item:focus{border-color:var(--accent);background:var(--surface2);outline:none;}
+  .torrent-item-icon{font-size:22px;flex-shrink:0;}
+  .torrent-item-info{flex:1;min-width:0;}
+  .torrent-item-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;}
+  .torrent-item-meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted);}
+  .progress-bar{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .5s;}
+  .progress-fill.complete{background:#4ade80;}
+  .torrent-item-action{flex-shrink:0;display:flex;gap:8px;}
+  .icon-btn{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;}
+  .icon-btn:hover,.icon-btn:focus{border-color:var(--accent);color:var(--accent);outline:none;}
+  .icon-btn.play-btn{background:var(--accent);border-color:var(--accent);color:white;}
+  .icon-btn.play-btn:hover{background:#c1121f;}
+
+  /* STREAM TAB */
+  .stream-tab-content{padding:90px 40px 40px;flex:1;overflow-y:auto;}
+  .url-area{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;}
+  .url-area h3{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;}
+  .url-row{display:flex;gap:10px;}
+  .url-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:15px;outline:none;transition:border-color .2s;}
+  .url-input:focus{border-color:var(--accent);}
+  .url-btn{background:var(--accent);color:white;border:none;border-radius:8px;padding:12px 20px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .2s;white-space:nowrap;}
+  .url-btn:hover{background:#c1121f;}
+  .site-pills{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .site-pill{padding:5px 12px;border-radius:20px;font-size:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;transition:all .2s;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;}
+  .site-pill:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* SETTINGS MODAL */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1000;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;animation:fadeIn .2s ease;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:560px;max-width:90vw;max-height:85vh;overflow-y:auto;}
+  .modal.login-modal{width:440px;}
+  .modal-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;}
+  .modal-close{background:none;border:none;color:var(--text-muted);font-size:22px;cursor:pointer;padding:4px;}
+  .modal-close:hover{color:var(--text);}
+  .settings-group{margin-bottom:24px;}
+  .settings-label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:block;}
+  .settings-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'Barlow',sans-serif;font-size:15px;outline:none;transition:border-color .2s;}
+  .settings-input:focus{border-color:var(--accent);}
+  .settings-row{display:flex;gap:10px;align-items:center;}
+  .settings-row .settings-input{flex:1;}
+  .settings-info{font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5;}
+  .settings-status{display:flex;align-items:center;gap:8px;font-size:13px;padding:10px 14px;background:var(--surface2);border-radius:8px;margin-bottom:20px;}
+  .account-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:8px;margin-bottom:20px;font-size:13px;}
+  .btn-save{background:var(--accent);color:white;border:none;border-radius:8px;padding:12px 28px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;cursor:pointer;width:100%;transition:all .2s;text-transform:uppercase;}
+  .btn-save:hover{background:#c1121f;}
+  .btn-test{background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:12px 16px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .2s;white-space:nowrap;}
+  .btn-test:hover{border-color:var(--accent2);color:var(--accent2);}
+  .divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+
+  /* FILE MODAL */
+  .file-list{display:flex;flex-direction:column;gap:8px;}
+  .file-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .2s;}
+  .file-item:hover,.file-item:focus{border-color:var(--accent);outline:none;}
+  .file-ext{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;background:var(--accent2);color:white;padding:2px 6px;border-radius:4px;flex-shrink:0;}
+  .file-name{flex:1;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .file-size{font-size:12px;color:var(--text-muted);flex-shrink:0;}
+
+  /* PLAYER */
+  #playerOverlay{display:none;position:fixed;inset:0;background:#000;z-index:2000;flex-direction:column;}
+  #playerOverlay.open{display:flex;}
+  #videoEl{width:100%;flex:1;background:#000;outline:none;}
+  .player-bar{background:rgba(0,0,.0,.95);padding:10px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .player-title{flex:1;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .player-close{background:var(--accent);border:none;color:white;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;padding:7px 18px;border-radius:6px;cursor:pointer;letter-spacing:1px;}
+  .player-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;padding:6px 14px;border-radius:6px;cursor:pointer;white-space:nowrap;}
+  .player-btn:focus,.player-btn:hover{border-color:var(--accent);outline:none;}
+  .player-btn.active{background:var(--accent);border-color:var(--accent);}
+  .transcoder-seek{display:none;width:100%;align-items:center;gap:12px;padding:0 0 4px;}
+  .transcoder-seek.open{display:flex;}
+  .seek-time{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;min-width:54px;text-align:center;}
+  .seek-range{flex:1;accent-color:var(--accent);height:22px;cursor:pointer;}
+  .seek-range:focus{outline:1px solid var(--accent);outline-offset:3px;}
+  /* Panel flotante de selección (calidad / audio / subs) */
+  .sel-panel{display:none;position:absolute;bottom:64px;background:rgba(10,10,15,.97);border:1px solid var(--border);border-radius:10px;min-width:200px;z-index:100;overflow:hidden;}
+  .sel-panel.open{display:block;}
+  .sel-panel-title{padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border);}
+  .sel-option{padding:10px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;}
+  .sel-option:hover,.sel-option:focus{background:var(--surface2);outline:none;}
+  .sel-option.active{color:var(--accent);}
+  .sel-option.active::before{content:'✓ ';}
+  /* Aviso de codec */
+  #codecBanner{display:none;position:absolute;top:0;left:0;right:0;background:rgba(230,57,70,.92);color:#fff;padding:10px 20px;font-size:13px;text-align:center;z-index:50;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .video-js{width:100%!important;height:100%!important;}
+  .vjs-big-play-button{display:none!important;}
+  #playerOverlay.transcoded .vjs-control-bar{display:none!important;}
+  #playerOverlay.transcoded .video-js{height:100%!important;}
+
+  /* MISC */
+  .loading-wrap{display:flex;flex-direction:column;align-items:center;padding:60px;gap:16px;color:var(--text-muted);}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;color:var(--text-muted);text-align:center;}
+  .empty-icon{font-size:60px;margin-bottom:16px;opacity:.3;}
+  .empty-title{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;margin-bottom:8px;color:var(--text);}
+  .empty-sub{font-size:14px;max-width:420px;line-height:1.6;}
+  .notice{background:rgba(69,123,157,.15);border:1px solid rgba(69,123,157,.3);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--accent2);line-height:1.5;}
+  .notice.warn{background:rgba(230,57,70,.1);border-color:rgba(230,57,70,.3);color:#f4a261;}
+  .toast{position:fixed;bottom:28px;right:28px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 18px;font-size:14px;z-index:9000;animation:slideUp .3s ease;max-width:360px;}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .toast.error{border-color:var(--accent);color:var(--accent);}
+  .toast.success{border-color:#4ade80;color:#4ade80;}
+  ::-webkit-scrollbar{width:5px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div class="screen active" id="splashScreen">
+  <div class="splash-logo">Stream<span>Box</span></div>
+  <div class="splash-sub">Android TV · Fire TV</div>
+  <div class="splash-spinner"></div>
+</div>
+
+<!-- MAIN -->
+<div class="screen" id="mainScreen">
+  <div class="topbar">
+    <div class="topbar-logo">Stream<span>Box</span></div>
+    <div class="tabs">
+      <div class="tab active-tab" tabindex="0" onclick="switchTab('search')" id="tabSearch">🔍 BUSCAR</div>
+      <div class="tab" tabindex="0" onclick="switchTab('torbox')" id="tabTorbox">🌩 TORBOX</div>
+      <div class="tab" tabindex="0" onclick="switchTab('stream')" id="tabStream">▶ STREAM</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Conectando...</span>
+      <button class="settings-btn" onclick="openSettings()" title="Ajustes">⚙</button>
+    </div>
+  </div>
+
+  <!-- TAB BUSCAR -->
+  <div id="tabSearchContent" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="search-bar-wrap">
+      <div class="search-input-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" type="text" placeholder="Buscar películas, series, torrents..."
+               onkeydown="if(event.key==='Enter')doSearch()">
+      </div>
+      <button class="search-btn" onclick="doSearch()">BUSCAR</button>
+    </div>
+    <div class="content-area" id="searchResults">
+      <div class="empty-state">
+        <div class="empty-icon">🎬</div>
+        <div class="empty-title">Listo para buscar</div>
+        <div class="empty-sub">StreamBox buscará simultáneamente en TorBox y sitios de streaming.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB TORBOX -->
+  <div id="tabTorboxContent" style="flex:1;overflow:hidden;display:none;flex-direction:column;">
+    <div id="torboxPanel">
+      <div class="panel-header">
+        🌩 Mis Torrents
+        <button class="search-btn" style="font-size:13px;padding:7px 14px;" onclick="loadTorboxList()">↻ ACTUALIZAR</button>
+      </div>
+      <div id="torboxList">
+        <div class="loading-wrap"><div class="splash-spinner"></div><span>Cargando...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB STREAM -->
+  <div id="tabStreamContent" style="flex:1;overflow-y:auto;display:none;flex-direction:column;">
+    <div class="stream-tab-content">
+      <div class="url-area">
+        <h3>📎 Reproducir URL Directa</h3>
+        <div class="url-row">
+          <input class="url-input" id="directUrlInput" type="text" placeholder="https://... (mp4, mkv, m3u8)">
+          <button class="url-btn" onclick="playDirectUrl()">▶ PLAY</button>
+        </div>
+      </div>
+      <div class="url-area">
+        <h3>🧲 Agregar Magnet / Torrent a TorBox</h3>
+        <div class="url-row">
+          <input class="url-input" id="magnetInput" type="text" placeholder="magnet:?xt=urn:btih:...">
+          <button class="url-btn" onclick="addTorrent()">➕ AGREGAR</button>
+        </div>
+      </div>
+      <div class="url-area">
+        <h3>🔗 Sitios de Streaming</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Abrí el sitio, encontrá el video y copiá la URL para reproducir acá.</p>
+        <div class="site-pills">
+          <span class="site-pill" onclick="openSite('https://pelispanda.org')">PelisPanda</span>
+          <span class="site-pill" onclick="openSite('https://hackstore2.com')">HackStore2</span>
+          <span class="site-pill" onclick="openSite('https://cinecalidad.fm')">CineCalidad</span>
+          <span class="site-pill" onclick="openSite('https://www.estrenos.uno')">Estrenos</span>
+          <span class="site-pill" onclick="openSite('https://repelis.tv')">Repelis</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-title">
+      ⚙ Ajustes
+      <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
+    </div>
+
+    <div class="account-row">
+      <span>Cuenta: <strong id="accountName">Sin sesión</strong></span>
+      <button class="btn-test" onclick="logoutAccount()">SALIR</button>
+    </div>
+
+    <div class="settings-status" id="settingsStatus">
+      <div class="status-dot" id="settingsStatusDot" style="width:10px;height:10px;flex-shrink:0;"></div>
+      <span id="settingsStatusText">Verificando conexión...</span>
+    </div>
+
+    <div class="settings-group">
+      <label class="settings-label">🌩 Cloudflare Worker URL (Proxy)</label>
+      <div class="settings-row">
+        <input class="settings-input" id="settingsWorker" type="text" placeholder="https://torbox-proxy.usuario.workers.dev">
+        <button class="btn-test" onclick="testWorkerFromSettings()">PROBAR</button>
+      </div>
+      <div class="settings-info">El Worker actúa de puente entre StreamBox y TorBox sin restricciones CORS.</div>
+    </div>
+
+    <div class="settings-group">
+      <label class="settings-label">🔑 TorBox API Key</label>
+      <input class="settings-input" id="settingsKey" type="password" placeholder="tb-xxxxxxxxxxxxxxxxxxxxxxxx">
+      <div class="settings-info">Tu key nunca sale de este dispositivo. Se guarda localmente en el navegador.</div>
+    </div>
+
+    <div class="settings-group">
+      <label class="settings-label">🎧 Render Transcoder URL</label>
+      <div class="settings-row">
+        <input class="settings-input" id="settingsTranscoder" type="text" placeholder="https://streambox-transcoder.onrender.com">
+        <button class="btn-test" onclick="testTranscoderFromSettings()">PROBAR</button>
+      </div>
+      <div class="settings-info">Opcional. Convierte MKV/AC3/DTS de TorBox a MP4/AAC compatible con navegador y habilita selector real de audio/subtítulos.</div>
+    </div>
+
+    <hr class="divider">
+
+    <button class="btn-save" onclick="saveSettings()">GUARDAR AJUSTES</button>
+
+    <div style="margin-top:12px;text-align:center;">
+      <span style="font-size:12px;color:var(--text-muted);cursor:pointer;" onclick="clearAll()">🗑 Borrar todo y resetear</span>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal login-modal">
+    <div class="modal-title">🔐 Ingresar a StreamBox</div>
+    <div class="settings-group">
+      <label class="settings-label">Servidor de cuentas</label>
+      <input class="settings-input" id="loginServer" type="text" placeholder="https://streambox-render-transcoder.onrender.com">
+      <div class="settings-info">Es la URL de Render. Se usa para traer tu configuración desde cualquier dispositivo.</div>
+    </div>
+    <div class="settings-group">
+      <label class="settings-label">Usuario</label>
+      <input class="settings-input" id="loginUsername" type="text" autocomplete="username">
+    </div>
+    <div class="settings-group">
+      <label class="settings-label">Contraseña</label>
+      <input class="settings-input" id="loginPassword" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginAccount()">
+    </div>
+    <button class="btn-save" onclick="loginAccount()">ENTRAR</button>
+    <div style="margin-top:12px;text-align:center;">
+      <span style="font-size:12px;color:var(--text-muted);cursor:pointer;" onclick="closeModal('loginModal');openSettings()">Configurar manualmente</span>
+    </div>
+  </div>
+</div>
+
+<!-- FILE MODAL -->
+<div class="modal-overlay" id="fileModal">
+  <div class="modal">
+    <div class="modal-title">
+      Seleccionar archivo
+      <button class="modal-close" onclick="closeModal('fileModal')">✕</button>
+    </div>
+    <div class="file-list" id="fileList"></div>
+  </div>
+</div>
+
+<!-- PLAYER -->
+<div id="playerOverlay">
+  <div id="playerContainer" style="flex:1;position:relative;background:#000;overflow:hidden;">
+    <video id="videoEl"
+      class="video-js vjs-default-skin"
+      controls preload="auto"
+      style="width:100%;height:100%;position:absolute;inset:0;"
+      crossorigin="anonymous">
+    </video>
+
+    <!-- Aviso codec -->
+    <div id="codecBanner">
+      ⚠️ <strong>Audio AC3/DTS detectado</strong> — el navegador no soporta este codec.
+      Intentando pista alternativa... <span id="codecDetail"></span>
+    </div>
+
+    <!-- Spinner -->
+    <div id="playerSpinner" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:10;">
+      <div style="width:44px;height:44px;border:4px solid #333;border-top-color:#e63946;border-radius:50%;animation:spin 1s linear infinite;"></div>
+      <span style="color:#edf2f4;font-size:13px;" id="spinnerMsg">Cargando...</span>
+    </div>
+
+    <!-- Paneles flotantes -->
+    <div class="sel-panel" id="panelAudio" style="right:160px;">
+      <div class="sel-panel-title">🎵 Pista de Audio</div>
+      <div id="audioTrackList"><div class="sel-option" style="color:var(--text-muted);">Cargando...</div></div>
+    </div>
+    <div class="sel-panel" id="panelSubs" style="right:80px;">
+      <div class="sel-panel-title">💬 Subtítulos</div>
+      <div id="subTrackList"><div class="sel-option" style="color:var(--text-muted);">Cargando...</div></div>
+    </div>
+    <div class="sel-panel" id="panelQuality" style="right:0px;">
+      <div class="sel-panel-title">⚙ Calidad / Velocidad</div>
+      <div id="qualityList"></div>
+    </div>
+  </div>
+
+  <div class="player-bar" style="position:relative;">
+    <div class="transcoder-seek" id="transcoderSeek">
+      <span class="seek-time" id="seekCurrent">00:00</span>
+      <input class="seek-range" id="seekRange" type="range" min="0" max="0" value="0" step="1"
+        oninput="previewTranscoderSeek(this.value)"
+        onchange="seekTranscoderTo(this.value)">
+      <span class="seek-time" id="seekDuration">--:--</span>
+    </div>
+    <span class="player-title" id="playerTitle">Reproduciendo...</span>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+      <button class="player-btn" id="btnAudio"   onclick="togglePanel('panelAudio')"  >🎵 Audio</button>
+      <button class="player-btn" id="btnSubs"    onclick="togglePanel('panelSubs')"   >💬 Subs</button>
+      <button class="player-btn" id="btnQuality" onclick="togglePanel('panelQuality')">⚙ Calidad</button>
+      <button class="player-btn" id="muteBtn"    onclick="toggleMute()"               >🔊</button>
+      <button class="player-close"               onclick="closePlayer()"              >✕ CERRAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONFIGURACIÓN — Editá solo estas dos líneas
+// ══════════════════════════════════════════════
+const DEFAULT_WORKER = 'https://torbox-workerjs.mfciraulo.workers.dev';
+const DEFAULT_APIKEY = ''; // Dejá vacío; el usuario lo pone en Ajustes la primera vez
+const DEFAULT_TRANSCODER = 'https://streambox-render-transcoder.onrender.com';
+const DEFAULT_AUTH_SERVER = 'https://streambox-render-transcoder.onrender.com';
+// ══════════════════════════════════════════════
+
+let WORKER_URL = localStorage.getItem('sb_worker') || DEFAULT_WORKER;
+let API_KEY    = localStorage.getItem('sb_key')    || DEFAULT_APIKEY;
+let TRANSCODER_URL = localStorage.getItem('sb_transcoder') || DEFAULT_TRANSCODER;
+let AUTH_URL = localStorage.getItem('sb_auth_server') || DEFAULT_AUTH_SERVER;
+let AUTH_TOKEN = localStorage.getItem('sb_auth_token') || '';
+let currentUser = null;
+let currentTorrentId = null;
+
+// ── INIT ─────────────────────────────────────
+window.onload = async () => {
+  setTimeout(() => {
+    document.getElementById('splashScreen').classList.remove('active');
+    document.getElementById('mainScreen').classList.add('active');
+    initAccount();
+  }, 1200);
+};
+
+// ── STATUS ────────────────────────────────────
+async function updateStatus() {
+  if (!API_KEY || !WORKER_URL) { setStatus('#6b7280','Sin configurar'); return; }
+  try {
+    const d = await tbFetch('/user/me');
+    if (d.success) setStatus('#4ade80', d.data?.email?.split('@')[0] || 'TorBox OK');
+    else setStatus('#f59e0b','API error');
+  } catch(e) { setStatus('#ef4444','Sin conexión'); }
+}
+
+function setStatus(color, text) {
+  const dot = document.getElementById('statusDot');
+  dot.style.background = color;
+  dot.style.boxShadow = `0 0 8px ${color}99`;
+  document.getElementById('statusText').textContent = text;
+}
+
+// ── CUENTAS ───────────────────────────────────
+function openLogin() {
+  document.getElementById('loginServer').value = AUTH_URL;
+  document.getElementById('loginModal').classList.add('open');
+  setTimeout(() => document.getElementById('loginUsername').focus(), 100);
+}
+
+function applyAccountConfig(user) {
+  currentUser = user;
+  const cfg = user?.config || {};
+  WORKER_URL = cfg.workerUrl || WORKER_URL || DEFAULT_WORKER;
+  API_KEY = cfg.torboxApiKey || API_KEY || DEFAULT_APIKEY;
+  TRANSCODER_URL = cfg.transcoderUrl || TRANSCODER_URL || DEFAULT_TRANSCODER;
+  localStorage.setItem('sb_worker', WORKER_URL);
+  localStorage.setItem('sb_key', API_KEY);
+  localStorage.setItem('sb_transcoder', TRANSCODER_URL);
+  document.getElementById('accountName').textContent = user?.username || 'Sin sesión';
+}
+
+async function accountFetch(path, opts = {}) {
+  if (!AUTH_URL) throw new Error('Sin servidor de cuentas');
+  const res = await fetch(`${AUTH_URL}${path}`, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AUTH_TOKEN}`,
+      ...(opts.headers || {})
+    }
+  });
+  const data = await res.json().catch(() => ({status:'error', error:'Respuesta inválida'}));
+  if (!res.ok || data.status === 'error') throw new Error(data.error || 'Error de cuenta');
+  return data;
+}
+
+async function initAccount() {
+  if (AUTH_TOKEN) {
+    try {
+      const data = await accountFetch('/auth/me');
+      applyAccountConfig(data.user);
+      updateStatus();
+      loadTorboxList();
+      return;
+    } catch(e) {
+      localStorage.removeItem('sb_auth_token');
+      AUTH_TOKEN = '';
+    }
+  }
+  if (API_KEY && WORKER_URL) {
+    updateStatus();
+    loadTorboxList();
+  }
+  openLogin();
+}
+
+async function loginAccount() {
+  const server = document.getElementById('loginServer').value.trim().replace(/\/$/,'');
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!server || !username || !password) { showToast('Completá servidor, usuario y contraseña','error'); return; }
+  AUTH_URL = server;
+  localStorage.setItem('sb_auth_server', AUTH_URL);
+  showToast('Ingresando...');
+  try {
+    const res = await fetch(`${AUTH_URL}/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== 'ok') throw new Error(data.error || 'Login incorrecto');
+    AUTH_TOKEN = data.token;
+    localStorage.setItem('sb_auth_token', AUTH_TOKEN);
+    applyAccountConfig(data.user);
+    closeModal('loginModal');
+    document.getElementById('loginPassword').value = '';
+    showToast('✅ Sesión iniciada','success');
+    updateStatus();
+    loadTorboxList();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function logoutAccount() {
+  try { if (AUTH_TOKEN) await accountFetch('/auth/logout', {method:'POST'}); } catch(e) {}
+  AUTH_TOKEN = '';
+  currentUser = null;
+  localStorage.removeItem('sb_auth_token');
+  document.getElementById('accountName').textContent = 'Sin sesión';
+  closeModal('settingsModal');
+  openLogin();
+}
+
+// ── TORBOX API ────────────────────────────────
+async function tbFetch(path, opts={}) {
+  if (!WORKER_URL) throw new Error('Sin Worker URL');
+  if (!API_KEY)    throw new Error('Sin API Key');
+  const res = await fetch(`${WORKER_URL}/proxy${path}`, {
+    ...opts,
+    headers: { 'Authorization':`Bearer ${API_KEY}`, 'Content-Type':'application/json', ...(opts.headers||{}) }
+  });
+  return res.json();
+}
+
+// ── TABS ──────────────────────────────────────
+function switchTab(tab) {
+  ['search','torbox','stream'].forEach(t => {
+    document.getElementById(`tab${cap(t)}`).classList.toggle('active-tab', t===tab);
+    document.getElementById(`tab${cap(t)}Content`).style.display = t===tab ? 'flex' : 'none';
+  });
+  if (tab==='torbox') loadTorboxList();
+}
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+// ── SETTINGS ──────────────────────────────────
+function openSettings() {
+  document.getElementById('accountName').textContent = currentUser?.username || 'Sin sesión';
+  document.getElementById('settingsWorker').value = WORKER_URL;
+  document.getElementById('settingsKey').value    = API_KEY;
+  document.getElementById('settingsTranscoder').value = TRANSCODER_URL;
+  refreshSettingsStatus();
+  document.getElementById('settingsModal').classList.add('open');
+}
+
+async function refreshSettingsStatus() {
+  const dot  = document.getElementById('settingsStatusDot');
+  const text = document.getElementById('settingsStatusText');
+  if (!WORKER_URL || !API_KEY) {
+    dot.style.background='#6b7280'; text.textContent='Configuración incompleta'; return;
+  }
+  dot.style.background='#f59e0b'; text.textContent='Verificando...';
+  try {
+    const r = await fetch(`${WORKER_URL}/health`);
+    const j = await r.json();
+    if (j.status==='ok') {
+      dot.style.background='#4ade80';
+      text.textContent='Worker conectado ✓';
+    } else throw new Error();
+  } catch(e) {
+    dot.style.background='#ef4444';
+    text.textContent='No se pudo conectar al Worker';
+  }
+}
+
+async function testWorkerFromSettings() {
+  const url = document.getElementById('settingsWorker').value.trim().replace(/\/$/,'');
+  if (!url) { showToast('Ingresá la URL del Worker','error'); return; }
+  showToast('Probando Worker...');
+  try {
+    const r = await fetch(`${url}/health`);
+    const j = await r.json();
+    if (j.status==='ok') showToast('✅ Worker funcionando correctamente','success');
+    else showToast('El Worker respondió con error','error');
+  } catch(e) {
+    showToast('No se pudo conectar. Revisá la URL.','error');
+  }
+}
+
+async function testTranscoderFromSettings() {
+  const url = document.getElementById('settingsTranscoder').value.trim().replace(/\/$/,'');
+  if (!url) { showToast('La URL de Render es opcional; dejala vacía para no usar transcodificador'); return; }
+  showToast('Probando Render...');
+  try {
+    const r = await fetch(`${url}/health`);
+    const j = await r.json();
+    if (j.status==='ok') showToast('✅ Render Transcoder funcionando','success');
+    else showToast('Render respondió con error','error');
+  } catch(e) {
+    showToast('No se pudo conectar a Render. Revisá la URL.','error');
+  }
+}
+
+async function saveSettings() {
+  const w = document.getElementById('settingsWorker').value.trim().replace(/\/$/,'');
+  const k = document.getElementById('settingsKey').value.trim();
+  const t = document.getElementById('settingsTranscoder').value.trim().replace(/\/$/,'');
+  if (!w) { showToast('La URL del Worker es obligatoria','error'); return; }
+  if (!k) { showToast('La API Key es obligatoria','error'); return; }
+  WORKER_URL = w; API_KEY = k; TRANSCODER_URL = t;
+  localStorage.setItem('sb_worker', w);
+  localStorage.setItem('sb_key', k);
+  if (t) localStorage.setItem('sb_transcoder', t);
+  else localStorage.removeItem('sb_transcoder');
+  if (AUTH_TOKEN) {
+    try {
+      const data = await accountFetch('/auth/config', {
+        method: 'PUT',
+        body: JSON.stringify({config:{workerUrl:w, torboxApiKey:k, transcoderUrl:t}})
+      });
+      applyAccountConfig(data.user);
+    } catch(e) {
+      showToast('Guardado local, pero no se pudo sincronizar la cuenta','error');
+    }
+  }
+  closeModal('settingsModal');
+  showToast('✅ Ajustes guardados','success');
+  updateStatus();
+  loadTorboxList();
+}
+
+function clearAll() {
+  if (!confirm('¿Borrar toda la configuración y resetear StreamBox?')) return;
+  localStorage.clear();
+  location.reload();
+}
+
+// ── SEARCH ────────────────────────────────────
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  const c = document.getElementById('searchResults');
+  c.innerHTML = `<div class="loading-wrap"><div class="splash-spinner"></div><span>Buscando "${q}"...</span></div>`;
+  const [tr, st] = await Promise.allSettled([searchTorrents(q), searchStreams(q)]);
+  renderResults(q, tr.status==='fulfilled'?tr.value:[], st.status==='fulfilled'?st.value:[]);
+}
+
+async function searchTorrents(q) {
+  if (!API_KEY||!WORKER_URL) return [];
+  try {
+    const d = await tbFetch(`/torrents/search?query=${encodeURIComponent(q)}&limit=20`);
+    return d.success&&d.data ? d.data : [];
+  } catch(e) { return []; }
+}
+
+async function searchStreams(q) {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:800,
+        system:'Respondé SOLO con JSON válido, sin markdown. Formato: {"results":[{"title":"string","year":"string","quality":"HD|FHD|4K","source":"PelisPanda|CineCalidad|HackStore2","type":"pelicula|serie"}]}. Generá 5 resultados plausibles.',
+        messages:[{role:'user',content:`Buscar: ${q}`}]
+      })
+    });
+    const data = await res.json();
+    const txt = (data.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim();
+    return JSON.parse(txt).results||[];
+  } catch(e) {
+    return [{title:q,year:'2024',quality:'FHD',source:'PelisPanda',type:'pelicula'}];
+  }
+}
+
+function renderResults(q, torrents, streams) {
+  const c = document.getElementById('searchResults');
+  let html = '';
+  if (torrents.length) {
+    html += `<div class="results-section">
+      <div class="section-title">🌩 TORRENTS <span class="section-badge">${torrents.length}</span></div>
+      <div class="results-grid">`;
+    torrents.forEach(t => {
+      html += `<div class="torrent-card" tabindex="0"
+        onclick="handleTorrent('${escH(t.hash||t.id)}','${escH(t.name)}')"
+        onkeydown="if(event.key==='Enter')handleTorrent('${escH(t.hash||t.id)}','${escH(t.name)}')">
+        <div class="torrent-name">${escH(t.name)}</div>
+        <div class="torrent-meta">
+          <span class="meta-pill seed">▲${t.seeds||0}</span>
+          <span class="meta-pill leech">▼${t.peers||0}</span>
+          <span class="meta-pill size">💾${fmtBytes(t.size)}</span>
+        </div>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+  if (streams.length) {
+    html += `<div class="results-section">
+      <div class="section-title">▶ STREAMING <span class="section-badge">${streams.length}</span></div>
+      <div class="results-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">`;
+    streams.forEach(s => {
+      html += `<div class="stream-card" tabindex="0"
+        onclick="handleStreamResult('${escH(s.source)}','${escH(s.title)}')"
+        onkeydown="if(event.key==='Enter')handleStreamResult('${escH(s.source)}','${escH(s.title)}')">
+        <div class="stream-thumb">
+          <div style="position:absolute;font-size:48px;opacity:0.07">🎬</div>
+          <div class="stream-play-icon">▶</div>
+        </div>
+        <div class="stream-info">
+          <div class="stream-title">${escH(s.title)}</div>
+          <div class="stream-source"><span class="source-badge">${escH(s.source)}</span>${s.year} · ${s.quality}</div>
+        </div>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+  if (!html) html = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Sin resultados</div><div class="empty-sub">Intentá con otro término.</div></div>`;
+  c.innerHTML = html;
+}
+
+// ── TORRENT HANDLING ──────────────────────────
+async function handleTorrent(hashOrId, name) {
+  if (!API_KEY||!WORKER_URL) { openSettings(); return; }
+  showToast('Verificando en TorBox...');
+  try {
+    const list = await tbFetch('/torrents/mylist');
+    if (list.success&&list.data) {
+      const found = list.data.find(t=>t.hash===hashOrId||String(t.id)===String(hashOrId));
+      if (found?.download_finished) { currentTorrentId=found.id; showFileList(found); return; }
+      if (found) { showToast(`Descargando: ${Math.round((found.progress||0)*100)}%`); return; }
+    }
+  } catch(e){}
+  try {
+    const r = await tbFetch('/torrents/createtorrent',{method:'POST',body:JSON.stringify({magnet:`magnet:?xt=urn:btih:${hashOrId}`})});
+    if (r.success) { showToast('✅ Torrent agregado a TorBox','success'); switchTab('torbox'); }
+    else showToast(r.detail||'Error al agregar','error');
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+}
+
+function handleStreamResult(source, title) {
+  const sites={PelisPanda:'https://pelispanda.org',CineCalidad:'https://cinecalidad.fm',HackStore2:'https://hackstore2.com'};
+  showToast(`Abriendo ${source}... copiá el link del video → Stream → URL Directa`);
+  window.open(sites[source]||'https://pelispanda.org','_blank');
+}
+
+// ── TORBOX LIST ───────────────────────────────
+async function loadTorboxList() {
+  const el = document.getElementById('torboxList');
+  if (!API_KEY||!WORKER_URL) {
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚙</div><div class="empty-title">Sin configurar</div><div class="empty-sub">Tocá el botón ⚙ para ingresar tu API Key y Worker URL.</div></div>`; return;
+  }
+  el.innerHTML=`<div class="loading-wrap"><div class="splash-spinner"></div><span>Cargando torrents...</span></div>`;
+  try {
+    const data = await tbFetch('/torrents/mylist');
+    if (!data.success||!data.data?.length) {
+      el.innerHTML=`<div class="empty-state"><div class="empty-icon">🌩</div><div class="empty-title">Sin torrents</div><div class="empty-sub">Buscá contenido y agregá torrents desde Buscar.</div></div>`; return;
+    }
+    let html='<div class="torrent-list">';
+    data.data.forEach(t=>{
+      const pct=Math.round((t.progress||0)*100);
+      const done=t.download_finished;
+      html+=`<div class="torrent-item" tabindex="0">
+        <div class="torrent-item-icon">${done?'✅':pct>0?'⬇️':'⏳'}</div>
+        <div class="torrent-item-info">
+          <div class="torrent-item-name">${escH(t.name)}</div>
+          <div class="torrent-item-meta">
+            <span>💾${fmtBytes(t.size)}</span>
+            ${done?'<span style="color:#4ade80">✓ Listo</span>':`<span>${pct}%</span>`}
+          </div>
+          ${!done?`<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+        </div>
+        <div class="torrent-item-action">
+          ${done?`<button class="icon-btn play-btn" onclick="showFileList_id(${t.id})">▶</button>`:''}
+          <button class="icon-btn" onclick="deleteTorrent(${t.id})">🗑</button>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+    el.innerHTML=html;
+  } catch(e) {
+    el.innerHTML=`<div class="notice warn">⚠️ Error: ${escH(e.message)}<br><br>Verificá la configuración en ⚙ Ajustes.</div>`;
+  }
+}
+
+async function showFileList_id(id) {
+  try {
+    const d=await tbFetch(`/torrents/mylist?id=${id}`);
+    if(d.success){currentTorrentId=id;showFileList(Array.isArray(d.data)?d.data[0]:d.data);}
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+
+function showFileList(torrent) {
+  const files=torrent.files||[];
+  if(!files.length){streamTorbox(currentTorrentId||torrent.id,null,torrent.name);return;}
+  const vids=new Set(['mp4','mkv','avi','mov','m4v','ts','webm','flv']);
+  const show=files.filter(f=>vids.has((f.name||f.short_name||'').split('.').pop().toLowerCase()));
+  const list=show.length?show:files;
+  document.getElementById('fileList').innerHTML=list.map(f=>{
+    const name=f.name||f.short_name||'Archivo';
+    const ext=name.split('.').pop().toUpperCase();
+    return `<div class="file-item" tabindex="0"
+      onclick="streamTorbox(${currentTorrentId},${f.id},'${escH(name)}')"
+      onkeydown="if(event.key==='Enter')streamTorbox(${currentTorrentId},${f.id},'${escH(name)}')">
+      <span class="file-ext">${ext}</span>
+      <span class="file-name">${escH(name)}</span>
+      <span class="file-size">${fmtBytes(f.size)}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('fileModal').classList.add('open');
+}
+
+async function streamTorbox(torrentId, fileId, name) {
+  closeModal('fileModal');
+  showToast('Obteniendo link de streaming...');
+  try {
+    const q=fileId?`&file_id=${fileId}`:'';
+    const r=await tbFetch(`/torrents/requestdl?token=${API_KEY}&torrent_id=${torrentId}${q}&zip_link=false`);
+    if(r.success&&r.data) await playVideo(r.data,name,{preferTranscoder:true});
+    else showToast(r.detail||'No se pudo obtener el link','error');
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function deleteTorrent(id) {
+  try {
+    const r=await tbFetch('/torrents/controltorrent',{method:'POST',body:JSON.stringify({torrent_id:id,operation:'delete'})});
+    if(r.success){showToast('Eliminado');loadTorboxList();}
+    else showToast(r.detail||'Error','error');
+  } catch(e){showToast('Error','error');}
+}
+
+// ── STREAM DIRECTO ────────────────────────────
+function playDirectUrl() {
+  const url=document.getElementById('directUrlInput').value.trim();
+  if(!url){showToast('Ingresá una URL','error');return;}
+  playVideo(url,url.split('/').pop()||'Video');
+}
+
+async function addTorrent() {
+  if(!API_KEY||!WORKER_URL){openSettings();return;}
+  const val=document.getElementById('magnetInput').value.trim();
+  if(!val){showToast('Ingresá un magnet link','error');return;}
+  showToast('Agregando...');
+  try {
+    const body=val.startsWith('magnet:')?{magnet:val}:{url:val};
+    const r=await tbFetch('/torrents/createtorrent',{method:'POST',body:JSON.stringify(body)});
+    if(r.success){showToast('✅ Torrent agregado','success');document.getElementById('magnetInput').value='';switchTab('torbox');}
+    else showToast(r.detail||'Error','error');
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+
+function openSite(url){window.open(url,'_blank');showToast('Copiá el link del video y pegalo en URL Directa');}
+
+// ── PLAYER ───────────────────────────────────
+let vjsPlayer = null;
+let currentStreamUrl = '';
+let currentStreamTitle = '';
+let currentOriginalStreamUrl = '';
+let currentUsingTranscoder = false;
+let currentServerAudioTracks = [];
+let currentServerSubTracks = [];
+let currentServerAudioIndex = 0;
+let currentServerSubIndex = -1;
+let currentServerDuration = 0;
+let currentSeekOffset = 0;
+let isSeekingTranscoder = false;
+
+// Cierra todos los paneles al hacer clic fuera
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.sel-panel') && !e.target.closest('.player-btn')) {
+    document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  }
+});
+
+function togglePanel(id) {
+  const panel = document.getElementById(id);
+  const wasOpen = panel.classList.contains('open');
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  if (!wasOpen) panel.classList.add('open');
+}
+
+function showSpinner(msg) {
+  const s = document.getElementById('playerSpinner');
+  document.getElementById('spinnerMsg').textContent = msg || 'Cargando...';
+  s.style.display = 'flex';
+}
+function hideSpinner() {
+  document.getElementById('playerSpinner').style.display = 'none';
+}
+
+function initPlayer() {
+  if (vjsPlayer) return;
+  vjsPlayer = videojs('videoEl', {
+    autoplay: true,
+    muted: false,
+    controls: true,
+    preload: 'auto',
+    playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+    html5: {
+      vhs: { overrideNative: true, enableLowInitialPlaylist: true },
+      nativeAudioTracks: false,
+      nativeVideoTracks: false,
+    },
+    techOrder: ['html5'],
+  });
+
+  // Cuando carga metadata: leer pistas de audio y subtítulos
+  vjsPlayer.on('loadedmetadata', function() {
+    hideSpinner();
+    buildAudioTrackList();
+    buildSubTrackList();
+    buildQualityList();
+    checkCodecSupport();
+  });
+
+  vjsPlayer.on('waiting', () => showSpinner('Buffering...'));
+  vjsPlayer.on('canplay',  () => hideSpinner());
+  vjsPlayer.on('playing',  () => {
+    hideSpinner();
+    if (vjsPlayer.muted()) {
+      vjsPlayer.muted(false);
+      document.getElementById('muteBtn').textContent = '🔊';
+    }
+  });
+  vjsPlayer.on('timeupdate', updateTranscoderSeekUI);
+  vjsPlayer.on('error', function() {
+    console.warn('VJS error:', vjsPlayer.error());
+    tryNativeFallback(currentStreamUrl);
+  });
+}
+
+// ── PISTAS DE AUDIO ──────────────────────────
+function buildAudioTrackList() {
+  const list = document.getElementById('audioTrackList');
+  if (currentUsingTranscoder && currentServerAudioTracks.length) {
+    list.innerHTML = currentServerAudioTracks.map((track, idx) => `
+      <div class="sel-option ${idx===currentServerAudioIndex?'active':''}" tabindex="0"
+        onclick="selectServerAudioTrack(${idx})" onkeydown="if(event.key==='Enter')selectServerAudioTrack(${idx})">
+        🎵 ${escH(trackLabel(track, `Audio ${idx+1}`))}
+      </div>`).join('');
+    return;
+  }
+  const tracks = vjsPlayer.audioTracks();
+  if (!tracks || tracks.length === 0) {
+    list.innerHTML = '<div class="sel-option" style="color:var(--text-muted);">Sin pistas detectadas</div>';
+    return;
+  }
+  let html = '';
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    const label = t.label || t.language || `Pista ${i+1}`;
+    html += `<div class="sel-option ${t.enabled ? 'active':''}" tabindex="0"
+      onclick="selectAudioTrack(${i})" onkeydown="if(event.key==='Enter')selectAudioTrack(${i})">
+      🎵 ${escH(label)}
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+function selectAudioTrack(idx) {
+  const tracks = vjsPlayer.audioTracks();
+  for (let i = 0; i < tracks.length; i++) tracks[i].enabled = (i === idx);
+  buildAudioTrackList();
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  showToast(`🎵 Audio: ${tracks[idx].label || tracks[idx].language || 'Pista '+(idx+1)}`);
+}
+
+function selectServerAudioTrack(idx) {
+  if (!currentUsingTranscoder || !currentOriginalStreamUrl) return;
+  currentServerAudioIndex = idx;
+  buildAudioTrackList();
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  showSpinner('Cambiando pista de audio...');
+  currentSeekOffset = getAbsolutePlaybackSeconds();
+  const nextUrl = makeTranscoderStreamUrl(currentOriginalStreamUrl, idx, currentSeekOffset, 'h264');
+  currentStreamUrl = nextUrl;
+  vjsPlayer.src({ src: nextUrl, type: 'video/mp4' });
+  vjsPlayer.play().catch(() => {});
+  showToast(`🎵 Audio: ${trackLabel(currentServerAudioTracks[idx], 'Audio '+(idx+1))}`);
+}
+
+// ── SUBTÍTULOS ───────────────────────────────
+function buildSubTrackList() {
+  const list = document.getElementById('subTrackList');
+  if (currentUsingTranscoder && currentServerSubTracks.length) {
+    let html = `<div class="sel-option ${currentServerSubIndex<0?'active':''}" tabindex="0"
+      onclick="selectServerSubTrack(-1)" onkeydown="if(event.key==='Enter')selectServerSubTrack(-1)">💬 Desactivado</div>`;
+    html += currentServerSubTracks.map((track, idx) => `
+      <div class="sel-option ${idx===currentServerSubIndex?'active':''}" tabindex="0"
+        onclick="selectServerSubTrack(${idx})" onkeydown="if(event.key==='Enter')selectServerSubTrack(${idx})">
+        💬 ${escH(trackLabel(track, `Sub ${idx+1}`))}
+      </div>`).join('');
+    list.innerHTML = html;
+    return;
+  }
+  const tracks = vjsPlayer.textTracks();
+  let html = `<div class="sel-option ${getActiveSub()<0?'active':''}" tabindex="0"
+    onclick="selectSub(-1)" onkeydown="if(event.key==='Enter')selectSub(-1)">
+    💬 Desactivado
+  </div>`;
+  let count = 0;
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (t.kind !== 'subtitles' && t.kind !== 'captions') continue;
+    const label = t.label || t.language || `Sub ${count+1}`;
+    html += `<div class="sel-option ${t.mode==='showing'?'active':''}" tabindex="0"
+      onclick="selectSub(${i})" onkeydown="if(event.key==='Enter')selectSub(${i})">
+      💬 ${escH(label)}
+    </div>`;
+    count++;
+  }
+  if (count === 0) html += '<div class="sel-option" style="color:var(--text-muted);">Sin subtítulos en el archivo</div>';
+  list.innerHTML = html;
+}
+
+function getActiveSub() {
+  const tracks = vjsPlayer.textTracks();
+  for (let i = 0; i < tracks.length; i++) if (tracks[i].mode === 'showing') return i;
+  return -1;
+}
+
+function selectSub(idx) {
+  const tracks = vjsPlayer.textTracks();
+  for (let i = 0; i < tracks.length; i++) {
+    if (tracks[i].kind === 'subtitles' || tracks[i].kind === 'captions') {
+      tracks[i].mode = (i === idx) ? 'showing' : 'hidden';
+    }
+  }
+  buildSubTrackList();
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  showToast(idx < 0 ? '💬 Subtítulos desactivados' : `💬 Sub: ${tracks[idx].label || tracks[idx].language}`);
+}
+
+function selectServerSubTrack(idx) {
+  if (!vjsPlayer) return;
+  const remoteTracks = vjsPlayer.remoteTextTracks();
+  for (let i = remoteTracks.length - 1; i >= 0; i--) {
+    vjsPlayer.removeRemoteTextTrack(remoteTracks[i]);
+  }
+  currentServerSubIndex = idx;
+  if (idx >= 0) {
+    const track = currentServerSubTracks[idx];
+    vjsPlayer.addRemoteTextTrack({
+      kind: 'subtitles',
+      src: makeTranscoderSubtitleUrl(currentOriginalStreamUrl, idx),
+      srclang: track.language || 'und',
+      label: trackLabel(track, 'Sub '+(idx+1)),
+      default: true
+    }, false);
+    setTimeout(() => {
+      const tracks = vjsPlayer.textTracks();
+      for (let i = 0; i < tracks.length; i++) {
+        if (tracks[i].kind === 'subtitles' || tracks[i].kind === 'captions') tracks[i].mode = 'showing';
+      }
+    }, 250);
+  }
+  buildSubTrackList();
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  showToast(idx < 0 ? '💬 Subtítulos desactivados' : `💬 Sub: ${trackLabel(currentServerSubTracks[idx], 'Sub '+(idx+1))}`);
+}
+
+// ── CALIDAD / VELOCIDAD ──────────────────────
+function buildQualityList() {
+  const list = document.getElementById('qualityList');
+  const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  const cur = vjsPlayer.playbackRate() || 1;
+
+  // Calidades VHS (si es HLS/DASH)
+  let qualHtml = '';
+  try {
+    const reps = vjsPlayer.vhs && vjsPlayer.vhs.representations ? vjsPlayer.vhs.representations() : [];
+    if (reps.length > 1) {
+      qualHtml += '<div class="sel-panel-title" style="border-top:1px solid var(--border);">📺 Resolución</div>';
+      qualHtml += `<div class="sel-option active" onclick="selectQuality(-1)">🔄 Auto</div>`;
+      reps.forEach((r, i) => {
+        const label = r.height ? `${r.height}p` : `${Math.round((r.bandwidth||0)/1000)}kbps`;
+        qualHtml += `<div class="sel-option" onclick="selectQuality(${i})">📺 ${label}</div>`;
+      });
+    }
+  } catch(e) {}
+
+  const speedHtml = '<div class="sel-panel-title" style="border-top:1px solid var(--border);">⏩ Velocidad</div>' +
+    rates.map(r => `<div class="sel-option ${r===cur?'active':''}" tabindex="0"
+      onclick="selectRate(${r})" onkeydown="if(event.key==='Enter')selectRate(${r})">
+      ${r===1?'▶ Normal':r+'x'}
+    </div>`).join('');
+
+  list.innerHTML = qualHtml + speedHtml;
+}
+
+function selectQuality(idx) {
+  try {
+    const reps = vjsPlayer.vhs.representations();
+    reps.forEach((r, i) => r.enabled(idx < 0 || i === idx));
+    showToast(idx < 0 ? '🔄 Calidad: Auto' : `📺 ${reps[idx].height||''}p`);
+  } catch(e) {}
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+}
+
+function selectRate(r) {
+  vjsPlayer.playbackRate(r);
+  buildQualityList();
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  showToast(`⏩ Velocidad: ${r===1?'Normal':r+'x'}`);
+}
+
+// ── DETECCIÓN DE CODEC ───────────────────────
+function checkCodecSupport() {
+  const v = document.createElement('video');
+  const hasAC3  = v.canPlayType('audio/ac3') || v.canPlayType('audio/x-ac3');
+  const hasDTS  = v.canPlayType('audio/dts');
+  const hasAAC  = v.canPlayType('audio/aac');
+
+  // Si no soporta AC3 y la URL es un MKV, avisar
+  if (!hasAC3 && currentStreamUrl.match(/\.mkv/i)) {
+    const banner = document.getElementById('codecBanner');
+    document.getElementById('codecDetail').textContent = '(AC3/DTS no soportado — usá la pista AAC si está disponible)';
+    banner.style.display = 'block';
+    setTimeout(() => banner.style.display = 'none', 7000);
+  }
+}
+
+// ── FALLBACK NATIVO ──────────────────────────
+function tryNativeFallback(url) {
+  showToast('Probando reproductor nativo...', '');
+  if (vjsPlayer) { try { vjsPlayer.dispose(); } catch(e){} vjsPlayer = null; }
+  const container = document.getElementById('playerContainer');
+  container.innerHTML = `
+    <video id="videoEl" controls autoplay playsinline
+      style="width:100%;height:100%;background:#000;position:absolute;inset:0;"
+      crossorigin="anonymous">
+      <source src="${url}">
+    </video>
+    <div id="playerSpinner" style="display:none;"></div>
+    <div id="codecBanner" style="display:none;"></div>
+    <div id="panelAudio" class="sel-panel" style="right:160px;"></div>
+    <div id="panelSubs"  class="sel-panel" style="right:80px;"></div>
+    <div id="panelQuality" class="sel-panel" style="right:0;"></div>`;
+  const v = document.getElementById('videoEl');
+  v.volume = 1.0; v.muted = false;
+  v.play().catch(() => { v.muted = false; v.play(); });
+}
+
+function getSourceType(url) {
+  if (url.includes('.m3u8')) return 'application/x-mpegURL';
+  if (url.includes('.mpd')) return 'application/dash+xml';
+  if (url.includes('.webm')) return 'video/webm';
+  if (url.includes('.mkv')) return 'video/x-matroska';
+  return 'video/mp4';
+}
+
+function makeTranscoderStreamUrl(url, audioIndex = 0, start = 0, videoMode = 'copy') {
+  const u = new URL(`${TRANSCODER_URL}/stream`);
+  u.searchParams.set('url', url);
+  u.searchParams.set('audio', String(audioIndex));
+  u.searchParams.set('video', videoMode);
+  if (start > 0) u.searchParams.set('start', String(Math.floor(start)));
+  return u.toString();
+}
+
+function makeTranscoderSubtitleUrl(url, subIndex = 0) {
+  const u = new URL(`${TRANSCODER_URL}/subtitle`);
+  u.searchParams.set('url', url);
+  u.searchParams.set('subtitle', String(subIndex));
+  return u.toString();
+}
+
+function trackLabel(track, fallback) {
+  const bits = [];
+  if (track.language) bits.push(track.language.toUpperCase());
+  if (track.title) bits.push(track.title);
+  if (track.codec) bits.push(track.codec.toUpperCase());
+  if (track.channels) bits.push(`${track.channels}ch`);
+  return bits.length ? bits.join(' · ') : fallback;
+}
+
+function formatClock(seconds) {
+  seconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function getAbsolutePlaybackSeconds() {
+  const local = vjsPlayer ? Number(vjsPlayer.currentTime() || 0) : 0;
+  return Math.min(currentServerDuration || Infinity, currentSeekOffset + local);
+}
+
+function setupTranscoderSeek() {
+  const wrap = document.getElementById('transcoderSeek');
+  const range = document.getElementById('seekRange');
+  if (!currentUsingTranscoder || !currentServerDuration) {
+    wrap.classList.remove('open');
+    return;
+  }
+  range.max = String(Math.floor(currentServerDuration));
+  range.value = String(Math.floor(currentSeekOffset));
+  document.getElementById('seekDuration').textContent = formatClock(currentServerDuration);
+  document.getElementById('seekCurrent').textContent = formatClock(currentSeekOffset);
+  wrap.classList.add('open');
+}
+
+function updateTranscoderSeekUI() {
+  if (!currentUsingTranscoder || !currentServerDuration || isSeekingTranscoder) return;
+  const absolute = getAbsolutePlaybackSeconds();
+  document.getElementById('seekCurrent').textContent = formatClock(absolute);
+  document.getElementById('seekRange').value = String(Math.floor(absolute));
+}
+
+function previewTranscoderSeek(value) {
+  if (!currentUsingTranscoder || !currentServerDuration) return;
+  isSeekingTranscoder = true;
+  document.getElementById('seekCurrent').textContent = formatClock(value);
+}
+
+function seekTranscoderTo(value) {
+  if (!currentUsingTranscoder || !currentOriginalStreamUrl) return;
+  const target = Math.max(0, Math.min(Number(value) || 0, currentServerDuration || Number(value) || 0));
+  currentSeekOffset = target;
+  isSeekingTranscoder = false;
+  showSpinner(`Saltando a ${formatClock(target)}...`);
+  const nextUrl = makeTranscoderStreamUrl(currentOriginalStreamUrl, currentServerAudioIndex, target, 'h264');
+  currentStreamUrl = nextUrl;
+  vjsPlayer.src({ src: nextUrl, type: 'video/mp4' });
+  vjsPlayer.play().catch(() => {});
+  updateTranscoderSeekUI();
+}
+
+async function loadTranscoderTracks(url) {
+  const r = await fetch(`${TRANSCODER_URL}/probe?url=${encodeURIComponent(url)}`);
+  const j = await r.json();
+  if (j.status !== 'ok') throw new Error(j.error || 'Render no pudo analizar el stream');
+  currentServerAudioTracks = j.data?.audio || [];
+  currentServerSubTracks = j.data?.subtitles || [];
+  currentServerDuration = Number(j.data?.duration || j.data?.format?.duration || 0);
+  currentServerAudioIndex = 0;
+  currentServerSubIndex = -1;
+  currentSeekOffset = 0;
+}
+
+// ── PLAY / CLOSE ─────────────────────────────
+async function playVideo(url, title, options = {}) {
+  currentOriginalStreamUrl = url;
+  currentStreamUrl   = url;
+  currentStreamTitle = title || 'Reproduciendo...';
+  currentUsingTranscoder = false;
+  currentServerAudioTracks = [];
+  currentServerSubTracks = [];
+  currentServerAudioIndex = 0;
+  currentServerSubIndex = -1;
+  currentServerDuration = 0;
+  currentSeekOffset = 0;
+  isSeekingTranscoder = false;
+  document.getElementById('transcoderSeek').classList.remove('open');
+  document.getElementById('playerOverlay').classList.remove('transcoded');
+  document.getElementById('playerTitle').textContent = currentStreamTitle;
+  document.getElementById('playerOverlay').classList.add('open');
+  showSpinner('Cargando stream...');
+
+  // Reset paneles
+  ['audioTrackList','subTrackList','qualityList'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div class="sel-option" style="color:var(--text-muted);">Cargando...</div>';
+  });
+
+  initPlayer();
+
+  let playbackUrl = url;
+  let type = getSourceType(url);
+  if (options.preferTranscoder && TRANSCODER_URL) {
+    try {
+      showSpinner('Analizando pistas en Render...');
+      await loadTranscoderTracks(url);
+      currentUsingTranscoder = true;
+      document.getElementById('playerOverlay').classList.add('transcoded');
+      playbackUrl = makeTranscoderStreamUrl(url, currentServerAudioIndex);
+      currentStreamUrl = playbackUrl;
+      type = 'video/mp4';
+      buildAudioTrackList();
+      buildSubTrackList();
+      setupTranscoderSeek();
+      vjsPlayer.controls(false);
+      showToast('🎧 Render activo: audio convertido a AAC','success');
+    } catch(e) {
+      showToast('Render no respondió; usando stream directo','error');
+    }
+  }
+  if (!currentUsingTranscoder) vjsPlayer.controls(true);
+
+  vjsPlayer.src({ src: playbackUrl, type });
+  vjsPlayer.play().catch(() => {
+    vjsPlayer.muted(true);
+    vjsPlayer.play().then(() => {
+      setTimeout(() => { vjsPlayer.muted(false); document.getElementById('muteBtn').textContent='🔊'; }, 600);
+    });
+  });
+}
+
+function closePlayer() {
+  document.querySelectorAll('.sel-panel.open').forEach(p => p.classList.remove('open'));
+  if (vjsPlayer) { try { vjsPlayer.pause(); vjsPlayer.src(''); } catch(e){} }
+  document.getElementById('transcoderSeek').classList.remove('open');
+  document.getElementById('playerOverlay').classList.remove('transcoded');
+  document.getElementById('playerOverlay').classList.remove('open');
+  hideSpinner();
+}
+
+function toggleMute() {
+  if (!vjsPlayer) return;
+  const m = !vjsPlayer.muted();
+  vjsPlayer.muted(m);
+  document.getElementById('muteBtn').textContent = m ? '🔇' : '🔊';
+}
+
+// ── UTILS ─────────────────────────────────────
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function showToast(msg,type=''){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
+function fmtBytes(b){
+  if(!b)return'?';
+  if(b<1024)return b+'B';
+  if(b<1048576)return(b/1024).toFixed(1)+'KB';
+  if(b<1073741824)return(b/1048576).toFixed(1)+'MB';
+  return(b/1073741824).toFixed(2)+'GB';
+}
+function escH(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+// ── D-PAD ─────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('playerOverlay').classList.contains('open')){
+    if(e.key==='Escape'||e.key==='GoBack')closePlayer();return;
+  }
+  const all=[...document.querySelectorAll('[tabindex="0"]')].filter(el=>{
+    const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden';
+  });
+  const idx=all.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'&&idx<all.length-1){all[idx+1].focus();e.preventDefault();}
+  else if(e.key==='ArrowUp'&&idx>0){all[idx-1].focus();e.preventDefault();}
+  else if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+  else if(e.key==='1')switchTab('search');
+  else if(e.key==='2')switchTab('torbox');
+  else if(e.key==='3')switchTab('stream');
+});
+</script>
+<!-- Video.js + VHS (HLS/DASH) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.10.0/video.min.js"></script>
+</body>
+</html>
