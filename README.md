@@ -29,8 +29,10 @@ Pegala en StreamBox: **Ajustes > Render Transcoder URL**.
 ```text
 GET /health
 GET /probe?url=VIDEO_URL
-GET /stream?url=VIDEO_URL&audio=0&video=copy
+GET /stream?url=VIDEO_URL&audio=0&video=copy&start=0
 GET /subtitle?url=VIDEO_URL&subtitle=0
 ```
 
 Si `video=copy` no reproduce imagen, probá `video=h264`, pero consume mucha más CPU.
+
+`start` permite reiniciar el stream desde un segundo exacto. StreamBox lo usa para la barra de avance precisa cuando el navegador trata la salida de ffmpeg como transmisión en vivo.

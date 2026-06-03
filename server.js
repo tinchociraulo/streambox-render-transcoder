@@ -1,15 +1,21 @@
 const http = require("http");
 const { spawn } = require("child_process");
 const { URL } = require("url");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 
 const port = Number(process.env.PORT || 10000);
 const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
+const usersFile = path.join(__dirname, "users.json");
+const adminHtmlFile = path.join(__dirname, "admin.html");
+const sessions = new Map();
 
 function corsHeaders(extra = {}) {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Range",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Range, Authorization",
     ...extra,
   };
 }
@@ -66,6 +72,7 @@ function describeTracks(probe) {
   const streams = Array.isArray(probe.streams) ? probe.streams : [];
   return {
     format: probe.format || {},
+    duration: Number(probe.format?.duration || 0),
     video: streams
       .map((stream, index) => ({ ...stream, streamIndex: index }))
       .filter((stream) => stream.codec_type === "video")
@@ -117,15 +124,21 @@ function handleStream(req, reqUrl, res) {
   const mediaUrl = parseMediaUrl(reqUrl.searchParams.get("url"));
   const audioIndex = Math.max(0, Number(reqUrl.searchParams.get("audio") || 0));
   const videoMode = reqUrl.searchParams.get("video") === "h264" ? "h264" : "copy";
+  const start = Math.max(0, Number(reqUrl.searchParams.get("start") || 0));
 
   const args = [
     "-hide_banner",
     "-loglevel", "warning",
     "-fflags", "+genpts",
+  ];
+
+  if (start > 0) args.push("-ss", String(start));
+
+  args.push(
     "-i", mediaUrl,
     "-map", "0:v:0",
-    "-map", `0:a:${audioIndex}?`,
-  ];
+    "-map", `0:a:${audioIndex}?`
+  );
 
   if (videoMode === "h264") {
     args.push("-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p");
@@ -137,6 +150,7 @@ function handleStream(req, reqUrl, res) {
     "-c:a", "aac",
     "-b:a", "160k",
     "-ac", "2",
+    "-avoid_negative_ts", "make_zero",
     "-movflags", "frag_keyframe+empty_moov+default_base_moof",
     "-f", "mp4",
     "pipe:1"
