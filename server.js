@@ -8,7 +8,7 @@ const crypto = require("crypto");
 const port = Number(process.env.PORT || 10000);
 const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS || 20000);
 const usersFile = path.join(__dirname, "users.json");
-const adminHtmlFile = path.join(__dirname, "admin.html");
+const adminHtmlFile = path.join(__dirname, "streambox-users-admin.html");
 const sessions = new Map();
 
 function corsHeaders(extra = {}) {
@@ -519,7 +519,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     const reqUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-    if (req.method === "GET" && reqUrl.pathname === "/admin") {
+    if (req.method === "GET" && reqUrl.pathname === "/streambox-users-admin") {
       serveFile(res, adminHtmlFile, "text/html; charset=utf-8");
       return;
     }

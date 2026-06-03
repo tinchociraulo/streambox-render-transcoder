@@ -12,7 +12,7 @@ También incluye cuentas:
 
 - Login con usuario y contraseña desde StreamBox.
 - Configuración por usuario: Worker URL, TorBox API Key y Render Transcoder URL.
-- Panel admin en `/admin` para crear, editar, activar/desactivar y borrar usuarios.
+- Panel de usuarios en `/streambox-users-admin` para crear, editar, activar/desactivar y borrar usuarios.
 - Contraseñas guardadas con hash PBKDF2, no en texto plano.
 
 ## Render
@@ -43,7 +43,7 @@ contraseña: streambox123
 Entrá a:
 
 ```text
-https://TU-SERVICIO.onrender.com/admin
+https://TU-SERVICIO.onrender.com/streambox-users-admin
 ```
 
 Cambiá la contraseña del admin y cargá las URLs/keys para cada usuario.
@@ -65,7 +65,7 @@ GET /health
 POST /auth/login
 GET /auth/me
 PUT /auth/config
-GET /admin
+GET /streambox-users-admin
 GET/POST /admin/users
 PUT/DELETE /admin/users/:id
 GET /probe?url=VIDEO_URL
