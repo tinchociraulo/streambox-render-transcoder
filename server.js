@@ -92,7 +92,7 @@ function ensureUsersFile() {
   data.users.push({
     id: crypto.randomUUID(),
     username: process.env.ADMIN_USERNAME || "admin",
-    passwordHash: hashPassword(process.env.ADMIN_PASSWORD || "streambox123"),
+    passwordHash: hashPassword(process.env.ADMIN_PASSWORD || "123456"),
     role: "admin",
     active: true,
     config: normalizeConfig({
