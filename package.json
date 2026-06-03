@@ -1,0 +1,12 @@
+{
+  "name": "streambox-render-transcoder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "StreamBox ffmpeg proxy for browser-compatible MP4 audio",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
