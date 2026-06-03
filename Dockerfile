@@ -5,7 +5,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY package.json server.js streambox-users-admin.html ./
+COPY . .
 
 ENV NODE_ENV=production
 EXPOSE 10000
