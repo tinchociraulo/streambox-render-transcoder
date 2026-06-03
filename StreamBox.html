@@ -145,10 +145,15 @@
   #videoEl{width:100%;flex:1;background:#000;outline:none;}
   .player-bar{background:rgba(0,0,.0,.95);padding:10px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .player-title{flex:1;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .player-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
   .player-close{background:var(--accent);border:none;color:white;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;padding:7px 18px;border-radius:6px;cursor:pointer;letter-spacing:1px;}
   .player-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:13px;padding:6px 14px;border-radius:6px;cursor:pointer;white-space:nowrap;}
   .player-btn:focus,.player-btn:hover{border-color:var(--accent);outline:none;}
   .player-btn.active{background:var(--accent);border-color:var(--accent);}
+  .volume-control{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;min-height:34px;}
+  .volume-control span{font-size:14px;line-height:1;min-width:18px;text-align:center;}
+  .volume-range{width:110px;accent-color:var(--accent);cursor:pointer;}
+  .volume-range:focus{outline:1px solid var(--accent);outline-offset:3px;}
   .transcoder-seek{display:none;width:100%;align-items:center;gap:12px;padding:0 0 4px;}
   .transcoder-seek.open{display:flex;}
   .seek-time{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;min-width:54px;text-align:center;}
@@ -185,6 +190,59 @@
   ::-webkit-scrollbar{width:5px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+  @media (max-width: 760px) {
+    body{height:100svh;}
+    .screen{height:100svh;}
+    .splash-logo{font-size:48px;}
+    .splash-sub{font-size:11px;letter-spacing:2px;}
+    .topbar{position:relative;padding:10px 12px;background:rgba(10,10,15,.98);gap:8px;flex-wrap:wrap;}
+    .topbar-logo{font-size:22px;width:100%;display:flex;justify-content:center;}
+    .tabs{order:2;width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+    .tab{font-size:13px;padding:10px 6px;text-align:center;min-height:42px;display:flex;align-items:center;justify-content:center;}
+    .topbar-right{position:absolute;right:10px;top:8px;gap:6px;}
+    .status-text{display:none;}
+    .settings-btn{width:40px;height:40px;font-size:17px;}
+    .search-bar-wrap{padding:12px;flex-direction:column;gap:10px;}
+    .search-input{font-size:16px;padding:13px 14px 13px 44px;}
+    .search-btn,.url-btn,.btn-save{width:100%;min-height:44px;}
+    .content-area{padding:0 12px 18px;}
+    .results-grid{grid-template-columns:1fr!important;gap:10px;}
+    .torrent-card,.stream-card,.url-area{border-radius:8px;}
+    #torboxPanel,.stream-tab-content{padding:12px;overflow-y:auto;}
+    .panel-header{font-size:21px;margin-bottom:12px;}
+    .torrent-item{align-items:flex-start;padding:12px;gap:10px;}
+    .torrent-item-meta{flex-wrap:wrap;gap:8px;}
+    .torrent-item-action{flex-direction:column;}
+    .icon-btn{width:42px;height:42px;}
+    .url-row,.settings-row,.account-row{flex-direction:column;align-items:stretch;}
+    .site-pills{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+    .site-pill{text-align:center;padding:10px 8px;border-radius:8px;}
+    .modal-overlay{align-items:flex-end;}
+    .modal{width:100vw;max-width:100vw;max-height:92svh;border-radius:16px 16px 0 0;padding:20px 16px;}
+    .modal.login-modal{width:100vw;}
+    .file-item{padding:14px 12px;}
+    .file-size{display:none;}
+    #playerOverlay{height:100svh;}
+    #playerContainer{min-height:0;}
+    .player-bar{padding:8px 10px 10px;gap:8px;background:rgba(0,0,0,.94);}
+    .transcoder-seek{order:1;gap:8px;padding-bottom:2px;}
+    .seek-time{font-size:11px;min-width:42px;}
+    .seek-range{height:28px;}
+    .player-title{order:2;flex-basis:100%;font-size:14px;white-space:normal;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .player-actions{order:3;width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;}
+    .player-btn,.player-close{min-height:42px;padding:8px 6px;font-size:12px;text-align:center;}
+    .volume-control{grid-column:1/-1;min-height:42px;justify-content:center;padding:8px 10px;}
+    .volume-range{width:100%;max-width:260px;}
+    .sel-panel{position:fixed;left:10px!important;right:10px!important;bottom:116px;min-width:0;max-height:50svh;overflow:auto;}
+    .toast{left:12px;right:12px;bottom:16px;max-width:none;}
+  }
+
+  @media (max-width: 420px) {
+    .player-actions{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .volume-control{grid-column:1/-1;}
+    .site-pills{grid-template-columns:1fr;}
+  }
 </style>
 </head>
 <body>
@@ -409,10 +467,15 @@
       <span class="seek-time" id="seekDuration">--:--</span>
     </div>
     <span class="player-title" id="playerTitle">Reproduciendo...</span>
-    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+    <div class="player-actions">
       <button class="player-btn" id="btnAudio"   onclick="togglePanel('panelAudio')"  >🎵 Audio</button>
       <button class="player-btn" id="btnSubs"    onclick="togglePanel('panelSubs')"   >💬 Subs</button>
       <button class="player-btn" id="btnQuality" onclick="togglePanel('panelQuality')">⚙ Calidad</button>
+      <div class="volume-control">
+        <span id="volumeIcon">🔊</span>
+        <input class="volume-range" id="volumeRange" type="range" min="0" max="1" step="0.01" value="1"
+          oninput="setPlayerVolume(this.value)">
+      </div>
       <button class="player-btn" id="muteBtn"    onclick="toggleMute()"               >🔊</button>
       <button class="player-close"               onclick="closePlayer()"              >✕ CERRAR</button>
     </div>
@@ -895,6 +958,8 @@ let currentServerSubIndex = -1;
 let currentServerDuration = 0;
 let currentSeekOffset = 0;
 let isSeekingTranscoder = false;
+let currentVolume = Number(localStorage.getItem('sb_volume') || 1);
+let currentMuted = localStorage.getItem('sb_muted') === '1';
 
 // Cierra todos los paneles al hacer clic fuera
 document.addEventListener('click', function(e) {
@@ -923,7 +988,7 @@ function initPlayer() {
   if (vjsPlayer) return;
   vjsPlayer = videojs('videoEl', {
     autoplay: true,
-    muted: false,
+    muted: currentMuted,
     controls: true,
     preload: 'auto',
     playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
@@ -934,6 +999,7 @@ function initPlayer() {
     },
     techOrder: ['html5'],
   });
+  vjsPlayer.ready(() => applyPlayerVolume());
 
   // Cuando carga metadata: leer pistas de audio y subtítulos
   vjsPlayer.on('loadedmetadata', function() {
@@ -948,10 +1014,11 @@ function initPlayer() {
   vjsPlayer.on('canplay',  () => hideSpinner());
   vjsPlayer.on('playing',  () => {
     hideSpinner();
-    if (vjsPlayer.muted()) {
+    if (vjsPlayer.muted() && !currentMuted && currentVolume > 0) {
       vjsPlayer.muted(false);
       document.getElementById('muteBtn').textContent = '🔊';
     }
+    updateVolumeUI();
   });
   vjsPlayer.on('timeupdate', updateTranscoderSeekUI);
   vjsPlayer.on('error', function() {
@@ -1168,8 +1235,50 @@ function tryNativeFallback(url) {
     <div id="panelSubs"  class="sel-panel" style="right:80px;"></div>
     <div id="panelQuality" class="sel-panel" style="right:0;"></div>`;
   const v = document.getElementById('videoEl');
-  v.volume = 1.0; v.muted = false;
+  v.volume = currentVolume; v.muted = currentMuted || currentVolume <= 0;
   v.play().catch(() => { v.muted = false; v.play(); });
+}
+
+function getRawVideoEl() {
+  return document.getElementById('videoEl');
+}
+
+function updateVolumeUI() {
+  const range = document.getElementById('volumeRange');
+  const icon = document.getElementById('volumeIcon');
+  const muteBtn = document.getElementById('muteBtn');
+  if (range) range.value = String(currentVolume);
+  const muted = currentMuted || currentVolume <= 0 || (vjsPlayer ? vjsPlayer.muted() : getRawVideoEl()?.muted);
+  const iconText = muted ? '🔇' : currentVolume < 0.45 ? '🔉' : '🔊';
+  if (icon) icon.textContent = iconText;
+  if (muteBtn) muteBtn.textContent = iconText;
+}
+
+function applyPlayerVolume() {
+  currentVolume = Math.max(0, Math.min(1, Number(currentVolume) || 0));
+  const muted = currentMuted || currentVolume <= 0;
+  if (vjsPlayer) {
+    try {
+      vjsPlayer.volume(currentVolume);
+      vjsPlayer.muted(muted);
+    } catch(e) {}
+  }
+  const raw = getRawVideoEl();
+  if (raw) {
+    try {
+      raw.volume = currentVolume;
+      raw.muted = muted;
+    } catch(e) {}
+  }
+  updateVolumeUI();
+}
+
+function setPlayerVolume(value) {
+  currentVolume = Math.max(0, Math.min(1, Number(value) || 0));
+  currentMuted = currentVolume <= 0;
+  localStorage.setItem('sb_volume', String(currentVolume));
+  localStorage.setItem('sb_muted', currentMuted ? '1' : '0');
+  applyPlayerVolume();
 }
 
 function getSourceType(url) {
@@ -1288,6 +1397,7 @@ async function playVideo(url, title, options = {}) {
   document.getElementById('playerOverlay').classList.remove('transcoded');
   document.getElementById('playerTitle').textContent = currentStreamTitle;
   document.getElementById('playerOverlay').classList.add('open');
+  updateVolumeUI();
   showSpinner('Cargando stream...');
 
   // Reset paneles
@@ -1321,10 +1431,14 @@ async function playVideo(url, title, options = {}) {
   if (!currentUsingTranscoder) vjsPlayer.controls(true);
 
   vjsPlayer.src({ src: playbackUrl, type });
+  applyPlayerVolume();
   vjsPlayer.play().catch(() => {
     vjsPlayer.muted(true);
     vjsPlayer.play().then(() => {
-      setTimeout(() => { vjsPlayer.muted(false); document.getElementById('muteBtn').textContent='🔊'; }, 600);
+      setTimeout(() => {
+        if (!currentMuted && currentVolume > 0) vjsPlayer.muted(false);
+        updateVolumeUI();
+      }, 600);
     });
   });
 }
@@ -1339,10 +1453,11 @@ function closePlayer() {
 }
 
 function toggleMute() {
-  if (!vjsPlayer) return;
-  const m = !vjsPlayer.muted();
-  vjsPlayer.muted(m);
-  document.getElementById('muteBtn').textContent = m ? '🔇' : '🔊';
+  currentMuted = !(currentMuted || (vjsPlayer ? vjsPlayer.muted() : getRawVideoEl()?.muted));
+  if (!currentMuted && currentVolume <= 0) currentVolume = 0.7;
+  localStorage.setItem('sb_muted', currentMuted ? '1' : '0');
+  localStorage.setItem('sb_volume', String(currentVolume));
+  applyPlayerVolume();
 }
 
 // ── UTILS ─────────────────────────────────────
