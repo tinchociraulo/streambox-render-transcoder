@@ -301,11 +301,24 @@ async function handleAdminApi(req, reqUrl, res) {
 }
 
 function serveFile(res, filePath, contentType) {
+  if (!fs.existsSync(filePath)) {
+    res.writeHead(500, corsHeaders({
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    }));
+    res.end(`<!doctype html><meta charset="utf-8"><title>StreamBox</title><body style="font-family:Arial;background:#0a0a0f;color:#edf2f4;padding:32px"><h1>Falta un archivo en Render</h1><p>No se encontro <code>${path.basename(filePath)}</code>.</p><p>Subi ese archivo al repo de GitHub y espera el redeploy.</p></body>`);
+    return;
+  }
   res.writeHead(200, corsHeaders({
     "Content-Type": contentType,
     "Cache-Control": "no-store",
   }));
-  fs.createReadStream(filePath).pipe(res);
+  const stream = fs.createReadStream(filePath);
+  stream.on("error", (error) => {
+    if (!res.headersSent) sendJson(res, 500, { status: "error", error: error.message });
+    else res.end();
+  });
+  stream.pipe(res);
 }
 
 function parseMediaUrl(value) {
@@ -519,6 +532,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     const reqUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    if (req.method === "GET" && reqUrl.pathname === "/admin") {
+      res.writeHead(302, corsHeaders({
+        Location: "/streambox-users-admin",
+        "Cache-Control": "no-store",
+      }));
+      res.end();
+      return;
+    }
     if (req.method === "GET" && reqUrl.pathname === "/streambox-users-admin") {
       serveFile(res, adminHtmlFile, "text/html; charset=utf-8");
       return;
